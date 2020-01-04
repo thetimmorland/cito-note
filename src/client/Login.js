@@ -10,7 +10,7 @@ import {
 } from "@material-ui/core"
 
 
-export default function Login() {
+export default function Login(props) {
 
   const [username, updateUsername] = useState("")
   const [password, updatePassword] = useState("")
@@ -18,7 +18,7 @@ export default function Login() {
   return(
     <form onSubmit={(event) => {
       axios.post("/api/auth", { username, password })
-        .then(res => localStorage.setItem("token", res.data))
+        .then(res => props.updateAuthToken(res.data))
       event.preventDefault()
     }}
     >
@@ -27,7 +27,7 @@ export default function Login() {
           <Grid
             container
             direction="column"
-            alignItems="center"
+            alignItems="flex-start"
             spacing={2}
           >
             <Grid item>
