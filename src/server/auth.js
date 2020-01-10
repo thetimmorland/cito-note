@@ -4,6 +4,8 @@ const authRouter = express.Router()
 const crypto = require("crypto")
 const jwt = require("jsonwebtoken")
 
+const { User } = require("./models")
+
 const SECRET = process.env.SECRET || "secret"
 
 const generateSalt = () =>
@@ -16,8 +18,10 @@ const hashPassword = (salt, password) =>
     .digest("base64")
 
 
-const issueAuthToken = model =>
-  jwt.sign({ sub: model.email }, SECRET)
+const issueAuthToken = user =>
+  jwt.sign({
+    data: user.get("uuid")
+  }, SECRET, { expiresIn: "24h" })
 
 
 authRouter.get("/", (req, res) => {
@@ -35,19 +39,19 @@ authRouter.get("/", (req, res) => {
 
 
 authRouter.post("/", (req, res) => {
-    const { username, password } = req.body
+    const { email, password } = req.body
     const salt = generateSalt()
     const hash = hashPassword(salt, password)
 
-    User.create({ username, salt, hash })
-      .then(user => res.send(issueAuthToken(user).status(200)))
+    User.create({ email, salt, hash })
+      .then(user => res.send(issueAuthToken(user)).status(200))
       .catch(() => res.sendStatus(500))
   })
 
 
 function authMiddleware (req, res, next) {
   try {
-    const accessToken = jwt.verify(req.body.accessToken, SECRET)
+    const accessToken = jwt.verify(req.get("authoriztion"), SECRET)
     res.body = { accessToken }
     next()
   } catch {
@@ -58,5 +62,5 @@ function authMiddleware (req, res, next) {
 
 module.exports = {
   authMiddleware,
-  authRoute,
+  authRouter,
 }

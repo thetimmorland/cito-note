@@ -1,12 +1,15 @@
 const express = require("express")
-const app = express()
+const server = express()
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+server.use(express.json())
+server.use(express.urlencoded({ extended: true }))
 
-app.use("/", express.static('./dist'))
+server.use("/", express.static('./dist'))
 
 const { authRouter } = require("./auth")
-app.use("/auth", authRouter)
+server.use("/api/auth", authRouter)
 
-app.listen(process.env.PORT || 8080)
+const { userRouter } = require("./user")
+server.use("/api/user", userRouter)
+
+server.listen(process.env.PORT || 8080)

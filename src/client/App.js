@@ -2,32 +2,34 @@ import React, { useState, useEffect } from "react"
 
 import {
   HashRouter as Router,
-  Switch,
-  Route,
   Redirect,
+  Route,
+  Switch,
   useHistory,
+  useRouteMatch,
 } from "react-router-dom"
 
 import {
-  TextField,
   AppBar,
   Box,
   Button,
-  Container,
+  CircularProgress,
   Grid,
+  TextField,
+  Typography,
   Toolbar,
 } from "@material-ui/core"
 
 import axios from "axios"
-
+import jwt from "jsonwebtoken"
 
 export default function App() {
-  return(
+  return (
     <Router>
       <Switch>
-        <PrivateRoute exact path="/">
-          <Home />
-        </PrivateRoute>
+        <Route exact path="/">
+          <PrivateData path="/api/users" child={<Home />} />
+        </Route>
         <Route path="/login">
           <Login />
         </Route>
@@ -37,82 +39,141 @@ export default function App() {
 }
 
 
-function PrivateRoute({ children, ...rest }) {
-  return (
-    <Route {...rest}
-      render={
-        () => localStorage.getItem("authorization") ? (
-          children
-        ) : (
-          <Redirect
-            to={{
-              pathname: "/login",
-              state: { from: location }
-            }}
-          />
-        )
-      }
-    />
-  )
+function Private({ path, child }) {
+
+    const auth = {
+        getToken: () => localStorage.getItem("autentication"),
+        getId: () => jwt.decode(this.getToken()).sub,
+        isAuthenticated: () => {
+            try {
+                jwt.decode(this.getToken())
+                return true;
+            } catch {
+                return false;
+            }
+        },
+    }
+
+  const [state, updateState] = useState([])
+
+  if (auth.isAutenticated) {
+    return(
+      <Child state={state} updateState={updateState} />
+    )
+  } else {
+    return(
+      <Redirect
+        to={{
+          pathname: "/login",
+          state: { from: location }
+        }}
+      />
+    )
+  }
 }
 
 
-function Home(props) {
+function Home() {
+  let { path, url } = useRouteMatch()
   let history = useHistory()
-    return (
-      <>
-        <AppBar position="static">
-          <Toolbar>
-            <Grid
-              container
-              direction="row"
-              justify="flex-end"
-            >
-              <Grid item>
-                <Button
-                  onClick={
-                    () => {
-                      localStorage.removeItem("authorization")
-                      history.push("/")
-                    }
-                  }
-                >
-                  Logout
-                </Button>
-              </Grid>
+
+  return (
+    <Router>
+      <AppBar position="static">
+        <Toolbar>
+          <Grid
+            container
+            direction="row"
+            justify="flex-end"
+          >
+            <Grid item>
+              <Button
+                onClick={() => {
+                  localStorage.removeItem("authorization")
+                  history.push("/login")
+                }}
+              >
+                Logout
+              </Button>
             </Grid>
-          </Toolbar>
-        </AppBar>
-        <Box m={2}>
-        </Box>
-      </>
-    )
+          </Grid>
+        </Toolbar>
+      </AppBar>
+      <Switch>
+        <Route exact path={path}>
+          <Bookshelf />
+        </Route>
+        <Route exact path={`${path}/:bookId`}>
+          <Editor />
+        </Route>
+      </Switch>
+    </Router>
+  )
 }
 
 
 function Bookshelf(props) {
+  const [books, updateBooks] = useState(null)
+
+  useEffect(() => {
+    axios.get(`/api/user/${id}/book`, { headers : {
+      authorization: localStorage.getItem("authorization")
+    }}).then(res => {
+      updateBooks(res.body)
+    })
+  })
+
   return (
-    <Grid container
-      direction="row"
-      justify="center"
-      alignItems="center"
-      spacing={2}
-    >
-      {
-        props.books.map(book => <Book {...book} />)
-      }
-    </Grid>
+    <Box m={2}>
+      <Grid
+        container
+        direction="column"
+        alignItems="stretch"
+        spacing={2}
+      >
+        {books ? (
+          books.map(book =>
+            <Grid item key={book.id}>
+              <Book { ...book } />
+            </Grid>
+          )
+        ) : (
+          <Grid item>
+            <CircularProgress />
+          </Grid>
+        )}
+      </Grid>
+    </Box>
   )
+
+  function Book(props) {
+    return (
+      <Button
+        variant="outlined"
+        color="primary"
+        fullWidth
+      >
+        <Grid
+          container
+          spacing={8}
+        >
+          <Grid item>
+            {props.name}
+          </Grid>
+          <Grid item>
+            {props.id}
+          </Grid>
+        </Grid>
+      </Button>
+    )
+  }
 }
 
 
-function Book(props) {
-  return (
-    <Grid item key={props.id}>
-      <Button variant="contained" color="primary">
-        <Typography variant="body1">{props.id}</Typography>
-      </Button>
-    </Grid>
+function Editor() {
+  let { path, url } = useRouteMatch()
+  return(
+    <p>Editor</p>
   )
 }
 
@@ -125,45 +186,46 @@ function Login(props) {
   let history = useHistory()
 
   return(
-    <form onSubmit={event => {
-      event.preventDefault()
-      axios.post("/api/auth", { email, password })
-        .then(res => {
+    <form
+      onSubmit={event => {
+        event.preventDefault()
+        axios.post("/api/auth", { email, password }).then(res => {
           localStorage.setItem("authorization", res.data)
           history.push("/");
         })
-    }}
+      }}
     >
       <Box m={2}>
-        <Container maxWidth="xs">
-          <Grid
-            container
-            direction="column"
-            alignItems="flex-start"
-            spacing={2}
-          >
-            <Grid item>
-              <TextField
-                required
-                label="Email"
-                value={email}
-                onChange={event => updateEmail(event.target.value)}
-              />
-            </Grid>
-            <Grid item>
-              <TextField
-                required
-                type="password"
-                label="Password"
-                value={password}
-                onChange={event => updatePassword(event.target.value)}
-              />
-            </Grid>
-            <Grid item>
-              <Button type="submit">Sign in</Button>
-            </Grid>
+        <Grid
+          container
+          justify="center"
+          direction="column"
+          alignItems="center"
+          spacing={2}
+        >
+          <Grid item>
+            <TextField
+              required
+              label="Email"
+              value={email}
+              onChange={event => {
+                updateEmail(event.target.value)
+              }}
+            />
           </Grid>
-        </Container>
+          <Grid item>
+            <TextField
+              required
+              type="password"
+              label="Password"
+              value={password}
+              onChange={event => updatePassword(event.target.value)}
+            />
+          </Grid>
+          <Grid item>
+            <Button type="submit">Sign in</Button>
+          </Grid>
+        </Grid>
       </Box>
     </form>
   )

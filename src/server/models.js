@@ -1,12 +1,21 @@
 const Sequelize = require("sequelize")
-const db = new Sequelize(process.env.DB || 'postgres://postgres@localhost:5432/postgres')
+const db = new Sequelize(process.env.DB || {
+  dialect: "sqlite",
+  storage: "dev_db.sqlite"
+})
 
 
 class User extends Sequelize.Model {}
 User.init({
+  id: {
+    primaryKey: true,
+    type: Sequelize.UUID,
+    defaultValue: Sequelize.UUIDV4,
+    unique: true,
+    allowNull: false,
+  },
   email: {
     type: Sequelize.STRING,
-    primaryKey: true,
     unique: true,
     allowNull: false,
   }, salt: {
@@ -26,12 +35,12 @@ User.init({
 
 class Book extends Sequelize.Model {}
 Book.init({
-  uuid: {
-    type: Sequelize.UUID,
+  id: {
     primaryKey: true,
+    type: Sequelize.UUID,
+    defaultValue: Sequelize.UUIDV4,
     unique: true,
     allowNull: false,
-    defaultValue: Sequelize.UUIDV4,
   }, name: {
     type: Sequelize.STRING,
   }
@@ -40,8 +49,11 @@ Book.init({
   modelName: "book",
 })
 
+User.hasMany(Book)
+Book.belongsTo(User)
 
-db.sync({ force: true })
+
+db.sync()
 module.exports = {
   Book,
   User,
